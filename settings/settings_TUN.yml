@@ -85,7 +85,7 @@ stimuli:
     iti_const: 120                     # if const, this will be the amount of TRs an iti will take
     triggerless_trs: 5                  # (curently not used, but commented out) how many TRs are taken without a trigger, if start_at_syn == 6 then this is 5
     blank_before_trs: 9                # how many TRs of blank before the task starts properly; 13*TR = 17.16s
-    blank_after_trs: 15                 # how many TRs of blank after the task has finished; 18*TR = 23.76s
+    blank_after_trs: 17                 # how many TRs of blank after the task has finished; 18*TR = 23.76s
     # stimulus offsets to correct for bold screen
     x_offset: 0.0 # pos r, neg l
     y_offset: -1 # pos up, neg down
