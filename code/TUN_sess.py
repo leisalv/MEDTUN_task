@@ -421,7 +421,6 @@ class TuningSession(PylinkEyetrackerSession):
                 if self.debug:
                     self.debug_message.setText(f"preparing to run, awaiting trigger, time: {self.clock.getTime(): .2f}")
                     self.debug_message.draw()
-                self.background.draw()
 
                 self.default_fix.draw()
 
@@ -446,8 +445,6 @@ class TuningSession(PylinkEyetrackerSession):
 
                 if self.debug:
                     self.debug_message.draw()
-
-                self.background.draw()
 
                 self.default_fix.draw()
 
