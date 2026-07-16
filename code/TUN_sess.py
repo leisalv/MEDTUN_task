@@ -83,8 +83,6 @@ class TuningSession(PylinkEyetrackerSession):
         # self.default_fix.setSize(1, units = 'deg')
         self.default_fix.setColor('black') # starting color
         self.default_fix.setPos((self.settings['stimuli']['x_offset'], self.settings['stimuli']['y_offset']))  
-        # -94.10695702   is 1 dva, sorry for hardcoding
-        self.background.setPos((self.settings['stimuli']['x_offset'], self.settings['stimuli']['y_offset'] * 94.10695702))       
 
         # setting up fixation task duration and timings
         print(np.sum(self.trial_sequence_df.iti_TR))
