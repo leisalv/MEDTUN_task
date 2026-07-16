@@ -78,9 +78,9 @@ stimuli:
     scanner_sync: True                 # set this to true to make phase p0 (prep) end on input 't', overrides default TR/2
     #screenshot: True                   # TODO implement
     stim_types: ['dur', 'isi']         # stimulus types, ['dur', 'isi']
-    stim_conds: [0, 0, 3 , 6, 9, 12, 21, 33, 57, 90, 147, 240] # stimulus condition in frames, interpreted as either stimulus duration ('dur' trials) or isi ('isi' trials)
+    stim_conds: [0, 6, 9, 12, 18, 27, 39, 57, 84, 123, 180] # stimulus condition in frames, interpreted as either stimulus duration ('dur' trials) or isi ('isi' trials)
     fixed_duration: 16                 # fixed duration for ISI trials
-    stim_duration: 240                  # total duration of the stimulus presentation in frames ()
+    stim_duration: 180                  # total duration of the stimulus presentation in frames ()
     iti_durations: 0                   # TODO [0, 1, 2, 3] for indexing the iti df or ['const']
     iti_const: 120                     # if const, this will be the amount of TRs an iti will take
     triggerless_trs: 5                  # (curently not used, but commented out) how many TRs are taken without a trigger, if start_at_syn == 6 then this is 5
