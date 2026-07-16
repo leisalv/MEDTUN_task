@@ -42,8 +42,8 @@ class TuningTrial(Trial):
         if self.session.flicker:
             self.frames_to_index = self._generate_index_sequence(self.session.settings['stimuli']['stim_duration'],
                                                              len(self.session.texture_paths) )
-        if self.session.debug:
-            print(f"made frame index for trial {trial_nr}: {self.frames_to_index}")
+        # if self.session.debug:
+        #     print(f"made frame index for trial {trial_nr}: {self.frames_to_index}")
 
     def _generate_index_sequence(self, n_frames: int, n_images: int, frames_per_img = 3) -> list[int]:
         """

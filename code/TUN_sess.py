@@ -26,7 +26,7 @@ class TuningSession(PylinkEyetrackerSession):
         ## adjust sequence df based on randomization
         if sequence_id is not None:
             # TODO
-            self.settings['stimuli']['trial_sequence'] = f'trial_sequences/design_11cond_focb_pilot2-v5_{sequence_id}.csv'
+            self.settings['stimuli']['trial_sequence'] = f'trial_sequences/design_optseq2_{sequence_id}.csv'
         
         self.settings['stimuli']['flicker'] = flicker
         self.flicker = flicker
