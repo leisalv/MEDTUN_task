@@ -69,9 +69,6 @@ class TuningSession(PylinkEyetrackerSession):
 
         self.fix_dot_colors = ['green', 'red'] # equivalent to [1, -1, -1] and [-1, 1, -1]
         self.default_fix = Circle(self.win, radius=self.settings['task']['fix_dot_size'], edges = 100, lineWidth=0, units = 'deg')
-        #930 is the diameter of the stimulus,sorry for hardcoding
-        self.background = Circle(self.win, radius=930/2, edges = 100, lineWidth=0, units = 'pix', color=(0, 0, 0))
-        
         # code checking for fix sizes. the method above creates dots of 1 dva or 94.10695702 px
         # fixation_radius_pixels2=tools.monitorunittools.deg2pix(self.settings['task']['fix_dot_size'], self.monitor)/2
         # self.default_fix2 = Circle(self.win, radius=fixation_radius_pixels2, edges = 100, lineWidth=0, units = 'pix')
@@ -386,10 +383,7 @@ class TuningSession(PylinkEyetrackerSession):
             
             #     # change color
             #     self.fix_dot_color_idx += 1
-            #     self.default_fix.setColor(self.fix_dot_colors[self.fix_dot_color_idx % len(self.fix_dot_colors)])
-            self.background.draw()
-
-            self.default_fix.draw()
+            #     self.default_fix.setColor(self.fix_dot_colors[self.fix_dot_color_idx % len(self.fix_dot_colors)])         self.default_fix.draw()
             if self.debug:
                 self.debug_message.setText(f"ending fix, time: {self.clock.getTime(): .2f}, time left: {self.total_fix_duration - self.clock.getTime(): .2f} last one: {self.fix_dot_color_timings[-1]}\ntopup time: {self.settings['mri']['topup_duration']}")
                 self.debug_message.draw()

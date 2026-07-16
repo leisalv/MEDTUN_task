@@ -99,8 +99,6 @@ class TuningTrial(Trial):
                 self.session.default_fix.draw()
                 
             else:
-                # draw background
-                self.session.background.draw()
                 # draw fixation 
                 self.session.default_fix.draw()
 
@@ -138,9 +136,6 @@ class TuningTrial(Trial):
             # potentially change color either here or in the beginning of draw
             #self.session.switch_fix_color()
 
-            # draw background
-            self.session.background.draw()
-
             # draw fixation
             self.session.default_fix.draw()
 
@@ -149,9 +144,15 @@ class TuningTrial(Trial):
         events = event.getKeys(timeStamped=self.session.clock)
         
         if events:
-            if 'q' in [ev[0] for ev in events]:  # specific key in settings?
+            ## DEBUGGING PURPOSES ONLY - COMMENT OUT FOR FINAL VERSION
+            quit_keys = {'q', 'escape', 'esc'}
+            if any(ev[0] in quit_keys for ev in events):  # specific key in settings?
                 self.session.close()
                 self.session.quit()
+            ##
+            # if 'q' in [ev[0] for ev in events]:  # specific key in settings?
+        #         self.session.close()
+        #         self.session.quit()
 
             for key, t in events:
 
