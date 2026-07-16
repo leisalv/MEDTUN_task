@@ -17,7 +17,7 @@ monitor:
     name: default
     width: 69.8  # in cm
     distance: 196  # in cm
-    gamma: 2.1 # activate this setting for BOLD screen!
+    # gamma: 2.1 # activate this setting for BOLD screen!
     # gamma: 1
 
 

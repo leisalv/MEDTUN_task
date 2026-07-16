@@ -67,7 +67,7 @@ class TuningTrial(Trial):
         This is to be used when flipping on every frame
         """
         # print(np.round(self.session.clock.getTime(), 2), np.round(self.session.clock.getTime(), 3))
-        # only outside phase 1:
+        # # only outside phase 1:
         # if self.phase != 1:
         #     # fixation dot color change
         #     self.session.switch_fix_color(effective = True)
@@ -134,7 +134,7 @@ class TuningTrial(Trial):
                 # self.session.recordings[self.parameters['trial_type']][self.parameters['stim_dur']].append(self.session.mic.getRecording())
 
             # potentially change color either here or in the beginning of draw
-            #self.session.switch_fix_color()
+            self.session.switch_fix_color()
 
             # draw fixation
             self.session.default_fix.draw()

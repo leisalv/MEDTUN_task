@@ -63,11 +63,12 @@ class TuningSession(PylinkEyetrackerSession):
         self.trial_frames = 0
 
         # fix dot color and size  
-        self.fix_dot_color_idx = 0
+        self.fix_dot_color_idx = np.random.randint(-1, 1)
         self.fix_dot_switch_idx = 0
         print(self.win.color)
 
-        self.fix_dot_colors = ['green', 'red'] # equivalent to [1, -1, -1] and [-1, 1, -1]
+        self.fix_dot_colors = self.settings['task']['fix_dot_colors']
+        self.fix_dot_color_counts = {color: 0 for color in self.fix_dot_colors}
         self.default_fix = Circle(self.win, radius=self.settings['task']['fix_dot_size'], edges = 100, lineWidth=0, units = 'deg')
         # code checking for fix sizes. the method above creates dots of 1 dva or 94.10695702 px
         # fixation_radius_pixels2=tools.monitorunittools.deg2pix(self.settings['task']['fix_dot_size'], self.monitor)/2
@@ -96,6 +97,7 @@ class TuningSession(PylinkEyetrackerSession):
         # adding the triggerless should not be necessary, as the clock gets reset with start_experiment
         self.total_fix_duration = self.total_exp_duration_s
         # self.total_fix_duration = self.total_exp_duration_s + self.settings['stimuli']['triggerless_trs'] * self.TR
+        self.all_fix_color_switches = []
         self.n_hits = 0
         self.n_fas = 0
         self.effective_fix_color_switches = [] 
@@ -357,7 +359,9 @@ class TuningSession(PylinkEyetrackerSession):
 
             # change color
             self.fix_dot_color_idx += 1
-            self.default_fix.setColor(self.fix_dot_colors[self.fix_dot_color_idx % len(self.fix_dot_colors)])
+            current_color = self.fix_dot_colors[self.fix_dot_color_idx % len(self.fix_dot_colors)]
+            self.default_fix.setColor(current_color)
+            self.fix_dot_color_counts[current_color] += 1
             
             # move start index to avoid double switches 
             # self.fix_dot_switch_idx += 1
@@ -538,7 +542,10 @@ class TuningSession(PylinkEyetrackerSession):
 
         # self.metadata['fix_dot_color_timings'] = list(self.fix_dot_color_timings)
         self.metadata['fix_dot_color_timings'] = [timing for timing in self.fix_dot_color_timings]
-        self.metadata['fix_dot_color_timings_effective'] = self.effective_fix_color_switches
+        self.metadata['fix_dot_color_counts'] = self.fix_dot_color_counts
+
+        print(f"Total fixation color switches (full run): {len(self.all_fix_color_switches)}")
+        print(f"Fixation color counts: {self.fix_dot_color_counts}")
 
         # save metadata
         json_path = os.path.join(self.output_dir, self.output_str + "_metadata.json")
