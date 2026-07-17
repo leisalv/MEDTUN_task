@@ -19,17 +19,15 @@ import yaml
 
 class TuningSession(PylinkEyetrackerSession):
     """ CTS/DN session. """
-    def __init__(self, output_str, output_dir=None, settings_file=None, sequence_id = None, n_trials=None, eyetracker_on=True, flicker = False, photodiode_check = False, debug = False):
+    def __init__(self, output_str, output_dir=None, settings_file=None, sequence_id=None, n_trials=None, eyetracker_on=True, condition='ct', debug = False):
 
         super().__init__(output_str, output_dir=output_dir, settings_file=settings_file, eyetracker_on=eyetracker_on)
         
-        ## adjust sequence df based on randomization
+        ## adjust sequence df based on randomization # TODO
         if sequence_id is not None:
-            # TODO
             self.settings['stimuli']['trial_sequence'] = f'trial_sequences/design_optseq2_{sequence_id}.csv'
         
-        self.settings['stimuli']['flicker'] = flicker
-        self.flicker = flicker
+
         # overwrite saved settings
         settings_out = op.join(self.output_dir, self.output_str + "_expsettings.yml")
         with open(settings_out, "w") as f_out:  # write settings to disk
@@ -40,7 +38,9 @@ class TuningSession(PylinkEyetrackerSession):
         self.TR = self.settings['mri']['TR'] # TR in seconds # TODO check whether this needs to become .9
 
         self.metadata = {'settings_file' : settings_file,
-                         'eyetracker': eyetracker_on}
+                         'eyetracker': eyetracker_on,
+                         'condition': condition}
+        self.condition = condition
 
         if n_trials is None:
             # just the length of the trial df
@@ -50,14 +50,6 @@ class TuningSession(PylinkEyetrackerSession):
             self.n_trials = n_trials
             self.trial_sequence_df = self.trial_sequence_df[:n_trials]
         
-        # load images on session level if flicker
-        if self.flicker:
-            self.texture_paths = glob.glob(f"textures/{self.settings['stimuli']['tex_type']}/*")
-            self.images = [ImageStim(self.win, texture_path, 
-                                      pos = (0+self.settings['stimuli']['x_offset'],
-                                                                     0+self.settings['stimuli']['y_offset']), units = 'deg', #interpolate = False,#size = 10,
-                        mask = 'raisedCos', maskParams = {'fringeWidth':0.02}) for texture_path in self.texture_paths]  # proportion that will be blurred
-
         # keeping track of frame timings
         self.trialwise_frame_timings = np.zeros((self.settings['stimuli']['stim_duration'], self.n_trials))
         self.trial_frames = 0
@@ -87,8 +79,8 @@ class TuningSession(PylinkEyetrackerSession):
 
         # setting up fixation task duration and timings
         print(np.sum(self.trial_sequence_df.iti_TR))
-        self.total_TRs_09 = self.settings['stimuli']['blank_before_trs']*1.7777777777777777 + np.sum(self.trial_sequence_df.iti_TR) + self.settings['stimuli']['blank_after_trs'] * 1.7777777777777777
-        self.total_TRs_16 = self.total_TRs_09 * 0.5625
+        self.total_TRs_09 = self.settings['stimuli']['blank_before_trs'] * (1.6/0.9) + np.sum(self.trial_sequence_df.iti_TR) + self.settings['stimuli']['blank_after_trs'] * (1.6/0.9)
+        self.total_TRs_16 = self.total_TRs_09 * (0.9/1.6)
         self.total_exp_duration_s = self.total_TRs_16 * self.TR
         self.total_exp_duration_f = self.total_exp_duration_s * 120
         print(f'total pseudo TRs (0.9): {self.total_TRs_09}')
@@ -97,9 +89,6 @@ class TuningSession(PylinkEyetrackerSession):
         # adding the triggerless should not be necessary, as the clock gets reset with start_experiment
         self.total_fix_duration = self.total_exp_duration_s
         # self.total_fix_duration = self.total_exp_duration_s + self.settings['stimuli']['triggerless_trs'] * self.TR
-        self.all_fix_color_switches = []
-        self.n_hits = 0
-        self.n_fas = 0
         self.effective_fix_color_switches = [] 
         self.last_fix_color_switch = None
 
@@ -121,27 +110,6 @@ class TuningSession(PylinkEyetrackerSession):
         if debug:
             self.debug_message = TextStim(self.win, text = "debug text", pos = (6.0,5.0), height = .3,
                                        opacity = .5) 
-
-        # photodiode checking code
-        self.photodiode_check = True if photodiode_check else False
-
-        if photodiode_check == True:
-            # only duration
-            self.trial_sequence_df = self.trial_sequence_df[self.trial_sequence_df.type == 'dur']
-            # quick
-            self.trial_sequence_df.iti_TR = [3 for i in range(len(self.trial_sequence_df))]
-            # triple
-            self.trial_sequence_df = pd.concat([self.trial_sequence_df, self.trial_sequence_df, self.trial_sequence_df])
-
-            self.mic = Microphone(streamBufferSecs=6.0)  # open the microphone
-            self.recordings = {"dur" : {timing: [] for timing in [0, 2, 4, 8, 16, 32, 64]}, # hardcoded for now
-                               "var" : {timing: [] for timing in [0, 2, 4, 8, 16, 32, 64]}}
-            
-            self.conditions = [] 
-            self.trial_type = [] 
-            self.recording_durations = [] 
-            self.delta_peaks = [] 
-            self.n_peaks_found = []
 
     
     def create_trials(self, timing='frames'):
@@ -175,13 +143,11 @@ class TuningSession(PylinkEyetrackerSession):
 
         ## making stimulus arrays
         self.stim_conds = self.settings['stimuli']['stim_conds'] # frames in 120 FPS, either duration or isi times
-        self.fixed_duration = self.settings['stimuli']['fixed_duration'] # fixed duration for isi trials
         self.total_duration = self.settings['stimuli']['stim_duration'] # (<800 ms in total) in exp design; 800 ms = .8*120 = 96 frames
         self._make_trial_frame_timings()
 
         # get paths to textures
         self.texture_paths = glob.glob(f"textures/{self.settings['stimuli']['tex_type']}/*") # get paths to textures
-        # TODO make aindex list for flicker like [a, a, a, f, f, f, c, c, c]
 
         # read trial_sequence_df for trial parameters
         params = [dict(trial_type = row.type,
@@ -236,18 +202,12 @@ class TuningSession(PylinkEyetrackerSession):
     def _make_trial_frame_timings(self):
         """
         makes frame-wise sequences for stimulus presentation
-        flip versions are needed for photodiode
         self.total_duration is the max stimulus length
         """
         var_duration = np.vstack([np.hstack((np.ones(stim_cond), # showing stimulus
                                              np.zeros(self.total_duration - stim_cond))) # no stimulus for the remaining frames
                                              for stim_cond in self.stim_conds])
-        # print([self.total_duration - stim_cond - 2*self.fixed_duration for stim_cond in self.stim_conds])
-        # var_isi = np.vstack([np.hstack((np.ones(self.fixed_duration), # show stimulus
-        #                                 np.zeros(stim_cond), # isi
-        #                                 np.ones(self.fixed_duration), # show stimulus again
-        #                                 np.zeros(self.total_duration - stim_cond - 2*self.fixed_duration))) # no stimulus for remaining frames 
-        #                                 for stim_cond in self.stim_conds])
+
         
         # these dicts are integer indexable with the current number of trial frames 
         # self.var_isi_dict = {dur:frames for dur, frames in zip(self.stim_conds, var_isi)}
@@ -257,32 +217,10 @@ class TuningSession(PylinkEyetrackerSession):
         for i in range(len(self.stim_conds)):
             #print(i)
             var_duration_flip[i, 0] = 1 # on
-            # var_duration_flip[i, self.stim_conds[i]] = -1 # off
             
             if self.stim_conds[i] == 0:
                 var_duration_flip[i, 0] = 0
         
-        # var_isi_flip = np.zeros((len(self.stim_conds), self.total_duration))
-
-        # for i in range(len(self.stim_conds)):
-        #     #print(i)
-            
-        #     if i == 0:
-        #         var_isi_flip[i, 0] = 1 # on
-        #         var_isi_flip[i, 2 * self.fixed_duration] = -1 # off
-                
-        #     else:
-        #         try:
-        #             # fixed 16 frames
-        #             var_isi_flip[i, 0] = 1 # on
-        #             var_isi_flip[i, 0 + self.fixed_duration] = -1 # off
-        #             var_isi_flip[i, 0 + self.fixed_duration + self.stim_conds[i]] = 1 # on
-        #             var_isi_flip[i, 0 + self.fixed_duration + self.stim_conds[i] + self.fixed_duration] = -1 # off
-        #         except IndexError:
-        #             continue
-        
-        # these dicts are integer indexable with the current number of trial frames 
-        # self.var_isi_dict_flip = {dur:frames for dur, frames in zip(self.stim_conds, var_isi_flip)}
         self.var_dur_dict_flip = {dur:frames for dur, frames in zip(self.stim_conds, var_duration_flip)}
 
         return
@@ -294,7 +232,6 @@ class TuningSession(PylinkEyetrackerSession):
         # Inspired by Marco's fixation task
         dot_switch_color_times = np.arange(3, total_time, self.settings['task']['color switch interval'])
         # adding randomness
-        # dot_switch_color_times += (2*np.random.rand(len(dot_switch_color_times))-1) # adding uniform noise [-1, 1] 
         dot_switch_color_times += (3*np.random.rand(len(dot_switch_color_times))-1.5) # adding uniform noise [-1.5, 1.5] 
 
         # last one will be total time, ending it all
@@ -347,11 +284,14 @@ class TuningSession(PylinkEyetrackerSession):
 
             self.timer.reset()
     
-    def switch_fix_color(self, atol = 1e-1, effective = False):
+    def switch_fix_color(self, atol = 1e-1,):
         """
         change color of default fix
-        effective flag indicates whether switch happens within a trial and is logged
         """
+        if self.condition != 'ct':
+            self.default_fix.setColor('black')
+            return
+
         t = self.clock.getTime()
         # if int(t*120) in self.fix_dot_color_timings:
         if np.round(t, 2) in self.fix_dot_color_timings[self.fix_dot_switch_idx:]:
@@ -368,32 +308,41 @@ class TuningSession(PylinkEyetrackerSession):
             # setting start index to index of current switch plus 1 to avoid double switches
             self.fix_dot_switch_idx = self.fix_dot_color_timings.index(np.round(t, 2)) + 1
             self.last_fix_color_switch = t
-
-            if effective:
-                self.effective_fix_color_switches.append(t)
-
+            
 
     def end_experiment(self):
         """
-        simply takes the fixation task to the end
+        keep showing the fixation dot until the operator quits with Q.
         """
         finish_fix_task = True
+        last_switch_time = self.clock.getTime()
+        switch_interval = self.settings['task']['color switch interval']
         while finish_fix_task:
-            
-            # self.switch_fix_color()
-            # if int(self.clock.getTime()*120) in self.fix_dot_color_timings:
-            
-            #     # change color
-            #     self.fix_dot_color_idx += 1
-            #     self.default_fix.setColor(self.fix_dot_colors[self.fix_dot_color_idx % len(self.fix_dot_colors)])         self.default_fix.draw()
+            keys = getKeys()
+            if 'q' in keys:
+                finish_fix_task = False
+                continue
+
+            if self.condition == 'ct':
+                current_time = self.clock.getTime()
+                if current_time - last_switch_time >= switch_interval:
+                    self.fix_dot_color_idx += 1
+                    current_color = self.fix_dot_colors[self.fix_dot_color_idx % len(self.fix_dot_colors)]
+                    self.default_fix.setColor(current_color)
+                    self.fix_dot_color_counts[current_color] += 1
+                    last_switch_time = current_time
+                    self.last_fix_color_switch = current_time
+            else:
+                self.default_fix.setColor('black')
+
             if self.debug:
-                self.debug_message.setText(f"ending fix, time: {self.clock.getTime(): .2f}, time left: {self.total_fix_duration - self.clock.getTime(): .2f} last one: {self.fix_dot_color_timings[-1]}\ntopup time: {self.settings['mri']['topup_duration']}")
+                self.debug_message.setText(
+                    f"ending fix, time: {self.clock.getTime(): .2f}, time left: {self.total_fix_duration - self.clock.getTime(): .2f} last one: {self.fix_dot_color_timings[-1]}\ntopup time: {self.settings['mri']['topup_duration']}"
+                )
                 self.debug_message.draw()
 
+            self.default_fix.draw()
             self.win.flip()
-
-            if self.clock.getTime() > self.fix_dot_color_timings[-1]:
-                finish_fix_task = False
         
         return
 
@@ -464,7 +413,7 @@ class TuningSession(PylinkEyetrackerSession):
 
         # finish task here, instead of dummy trial in the end
         # TODO check whether this finished gracefully
-        # self.end_experiment()
+        self.end_experiment()
 
         self.close()
 
@@ -530,21 +479,11 @@ class TuningSession(PylinkEyetrackerSession):
         frametimings_df.to_csv(op.join(self.output_dir, self.output_str + "_frametimings.csv"), index = False)
 
         current_datetime = datetime.now()
-        # plot and save audio
-        if self.photodiode_check:
-            photo_data = pd.DataFrame({'conditions':self.conditions,
-                        'trial_type': self.trial_type,
-                        'duration': self.recording_durations,
-                        'delta_peaks': self.delta_peaks,
-                        'n_peaks_found': self.n_peaks_found})
-            
-            photo_data.to_csv('photodiode_test_results/timing_photo_exp_results_{}.csv'.format(current_datetime.strftime("%Y-%m-%d-%H-%M")), index = False)
 
         # self.metadata['fix_dot_color_timings'] = list(self.fix_dot_color_timings)
         self.metadata['fix_dot_color_timings'] = [timing for timing in self.fix_dot_color_timings]
         self.metadata['fix_dot_color_counts'] = self.fix_dot_color_counts
 
-        print(f"Total fixation color switches (full run): {len(self.all_fix_color_switches)}")
         print(f"Fixation color counts: {self.fix_dot_color_counts}")
 
         # save metadata
@@ -555,45 +494,8 @@ class TuningSession(PylinkEyetrackerSession):
         if self.mri_simulator is not None:
             self.mri_simulator.stop()
 
-        # calculate d'
-        # according to https://wise.cgu.edu/wise-tutorials/tutorial-signal-detection-theory/signal-detection-d-defined-2/
-        # confirmed with exercises
-        n = len(self.effective_fix_color_switches)
-        
-        if n != 0:
-            if self.n_fas >= n:
-                # set arbitrary maximum fa_rate to allow d' calculation (also covering the unlikely edge case where hr > n)
-                print(f"n_fas ({self.n_hits}) on {n} switches, setting fa_rate to (n-1)/n for d' calculation")
-                fa_rate = (n-1)/n
-            elif self.n_fas == 0:
-                # set arbitrary minimum fa_rate to allow d' calculation
-                print("no false alarms, setting fa_rate to 1/n for d' calculation")
-                fa_rate = 1/n
-            else:
-                fa_rate = self.n_fas/n
-            
-            if self.n_hits >= n:
-                # set arbitrary maximum hit_rate to allow d' calculation (also covering the unlikely edge case where hr > n)
-                print(f"perfect hits ({self.n_hits}) on {n} switches, setting hit_rate to (n-1)/n for d' calculation")
-                hit_rate = (n-1)/n
-            elif self.n_hits == 0:
-                # set arbitrary minimum hit_rate to allow d' calculation
-                print(f"No hits ({self.n_hits}) on {n} switches, setting hit_rate to 1/n for d' calculation")
-                hit_rate = 1/n 
-            else:
-                hit_rate = self.n_hits/n
-        else:
-            print('No effective color switches reported. Did the task run?')
-            
-        try:
-            d_prime = norm.ppf(hit_rate) - norm.ppf(fa_rate)
-            print(f'd_prime = {d_prime:.2f}, fa_rate = {fa_rate:.2f}, hit_rate = {hit_rate:.2f}')
-        except Exception as e:
-            print('hit the following exception when trying to calculate d-prime. Something with the task may have gone wrong')
-            print(e)
-
-
         self.win.close()
+
         if self.eyetracker_on:
             self.stop_recording_eyetracker()
             self.tracker.setOfflineMode()

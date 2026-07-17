@@ -20,30 +20,8 @@ class TuningTrial(Trial):
         # self.check_frames = np.zeros((96, 3))
         
         # get the stimulus array with self.session.var_isi/dur_dict and save it into self.stimulus_frames
-        if self.parameters['trial_type'] == 'dur':
-            self.stimulus_frames = self.session.var_dur_dict[self.parameters['stim_dur']]
-            # self.stimulus_frames = self.session.var_dur_dict_flip[self.parameters['stim_dur']]
+        self.stimulus_frames = self.session.var_dur_dict[self.parameters['stim_dur']]
 
-        else:
-            self.stimulus_frames = self.session.var_isi_dict[self.parameters['stim_dur']]
-            # self.stimulus_frames = self.session.var_isi_dict_flip[self.parameters['stim_dur']]
-
-        # squares for Photodiode
-        if self.session.photodiode_check is True:
-            self.white_square = Rect(self.session.win, 2, 2, pos = (5.5,-2.5))
-            self.black_square = Rect(self.session.win, 2, 2, pos = (5.5,-2.5), fillColor = 'black')
-            if self.parameters['trial_type'] == 'dur':
-                self.square_flip_frames = self.session.var_dur_dict_flip[self.parameters['stim_dur']]
-                print(self.square_flip_frames)
-            else:
-                self.square_flip_frames = self.session.var_isi_dict_flip[self.parameters['stim_dur']]
-
-        # used for flicker condition to match frame index to image index
-        if self.session.flicker:
-            self.frames_to_index = self._generate_index_sequence(self.session.settings['stimuli']['stim_duration'],
-                                                             len(self.session.texture_paths) )
-        # if self.session.debug:
-        #     print(f"made frame index for trial {trial_nr}: {self.frames_to_index}")
 
     def _generate_index_sequence(self, n_frames: int, n_images: int, frames_per_img = 3) -> list[int]:
         """
@@ -78,22 +56,11 @@ class TuningTrial(Trial):
             self.session.debug_message.draw()
 
         if self.phase == 0: # we are in phase 0, stimulus presentation
-            if self.session.photodiode_check is True:
-                self.black_square.draw()
 
             ## if the self.stimulus_frames array at this frame index is one, show the texture, otherwise fix
             if self.stimulus_frames[self.session.trial_frames] == 1:
                 # draw texture
-                # TODO flicker here in case of flicker setting
-                # if flicker:
-                #     self.session.images 
-                if self.session.flicker:
-                    # print(self.session.trial_frames)
-                    # print(self.session.trial_frames)
-                    self.session.images[self.frames_to_index[self.session.trial_frames]].draw()
-
-                else:
-                    self.img.draw()
+                self.img.draw()
 
                 # draw fixation
                 self.session.default_fix.draw()
@@ -102,36 +69,8 @@ class TuningTrial(Trial):
                 # draw fixation 
                 self.session.default_fix.draw()
 
-            if self.session.photodiode_check is True:
-                if self.square_flip_frames[self.session.trial_frames]:
-                    self.white_square.draw()
-                else:
-                    self.black_square.draw()
-
 
         elif self.phase == 1: # we are in phase 1, iti
-            
-            if self.session.photodiode_check is True:
-
-                # this will oversample, on each draw()! -> TODO correct by putting it outside of draw!
-                self.black_square.draw()
-                self.session.mic.stop()
-                audioClip = self.session.mic.getRecording()
-                # plotting for debugging
-                # t = np.linspace(0, audioClip.duration, int(np.round(audioClip.sampleRateHz * audioClip.duration)))
-                # fig, ax = plt.subplots()
-                # ax.plot(t, audioClip.samples[:,1])
-                # plt.savefig('audio_recordings/audio_plot_exp.png')
-
-                peaks, _ = find_peaks(audioClip.samples[:,1], height = .3, distance = audioClip.sampleRateHz*1/120) 
-                self.session.conditions.append(self.parameters['stim_dur'])
-                self.session.trial_type.append(self.parameters['trial_type'])
-                self.session.recording_durations.append(audioClip.duration)
-                self.session.delta_peaks.append((peaks[1] - peaks[0])/audioClip.sampleRateHz)
-                self.session.n_peaks_found.append(len(peaks))
-                
-                # get recording and save into dict 
-                # self.session.recordings[self.parameters['trial_type']][self.parameters['stim_dur']].append(self.session.mic.getRecording())
 
             # potentially change color either here or in the beginning of draw
             self.session.switch_fix_color()
@@ -144,15 +83,15 @@ class TuningTrial(Trial):
         events = event.getKeys(timeStamped=self.session.clock)
         
         if events:
-            ## DEBUGGING PURPOSES ONLY - COMMENT OUT FOR FINAL VERSION
-            quit_keys = {'q', 'escape', 'esc'}
-            if any(ev[0] in quit_keys for ev in events):  # specific key in settings?
+            # ## DEBUGGING PURPOSES ONLY - COMMENT OUT FOR FINAL VERSION
+            # quit_keys = {'q', 'escape', 'esc'}
+            # if any(ev[0] in quit_keys for ev in events):  # specific key in settings?
+            #     self.session.close()
+            #     self.session.quit()
+            # ##
+            if 'q' in [ev[0] for ev in events]:  # specific key in settings?
                 self.session.close()
                 self.session.quit()
-            ##
-            # if 'q' in [ev[0] for ev in events]:  # specific key in settings?
-        #         self.session.close()
-        #         self.session.quit()
 
             for key, t in events:
 
@@ -161,34 +100,16 @@ class TuningTrial(Trial):
                     
                     ## not exiting based on ts!
                     # if self.phase == 0:
-                
-                    #     if self.session.photodiode_check is True:
-                    #        # start recording
-                    #         self.session.mic.start()
-                
                     #     self.exit_phase = True
 
                 else:
                     event_type = 'response'
-                    dt = None
-                    # calculate the dt to last fix color switch
-                    # it should just count FAs here
-                    if self.session.last_fix_color_switch is None:
-                        self.session.n_fas += 1
-                    else:
-                        dt = t - self.session.last_fix_color_switch
-                        if dt < self.session.settings['task']['response interval']:
-                            self.session.n_hits += 1
-                        elif dt >= self.session.settings['task']['response interval']:
-                            self.session.n_fas += 1
 
                     if self.session.debug:
                         if self.session.last_fix_color_switch is not None:
 
                             print(f'last switch was {self.session.last_fix_color_switch:.2f}')
-                            print(f'pressed key {key} at {t:.2f}, with dt {dt:.2f}')
-                        else:
-                            pass
+                            print(f'pressed key {key} at {t:.2f}')
 
 
                 idx = self.session.global_log.shape[0]
@@ -197,8 +118,7 @@ class TuningTrial(Trial):
                 self.session.global_log.loc[idx, 'event_type'] = event_type
                 self.session.global_log.loc[idx, 'phase'] = self.phase
                 self.session.global_log.loc[idx, 'response'] = key
-                if event_type == 'response':
-                    self.session.global_log.loc[idx, 'dt'] = dt
+                self.session.global_log.loc[idx, 'condition'] = self.session.condition
 
                 # for param, val in self.parameters.items():
                     # self.session.global_log.loc[idx, param] = val

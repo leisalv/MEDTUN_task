@@ -12,9 +12,11 @@ import os
 import json
 
 def main():
-    sub = sys.argv[1] # which subject (XX)
-    ses =  sys.argv[2] # which session (XX)
-    run = sys.argv[3] # which run (XX)
+    valid_conditions = {'fa', 'om', 'ct'}   ## TODO CODE AND RANDOMISE SO THAT SES/COND PAIRING IS SET PER SUBJECT
+    condition = sys.argv[1] if sys.argv[1] in valid_conditions else print(f"Invalid condition '{sys.argv[1]}'. Valid conditions are: {valid_conditions}") or sys.exit(1)
+    sub = sys.argv[2] # which subject (XX)
+    ses =  sys.argv[3] # which session (XX)
+    run = sys.argv[4] # which run (XX)
     task = 'TUN' # which task
     settings = f'settings/settings_{task}.yml' # grab settings
     dt = datetime.now().strftime('%Y%m%d%H%M%S') # get time to avoid overwriting
@@ -29,13 +31,7 @@ def main():
     if 'debug' in sys.argv:
         debug = True
 
-    # flicker yes/no
-    flicker=False
-    if 'flicker' in sys.argv:
-        flicker = True
-
-    output_str = f'sub-{sub}_ses-{ses}_task-{task}_run-{run}_dt-{dt}'
-    # output_dir_root = '/data1/projects/dumoulinlab/Lab_members/Xaver/sm-ND_taskdata-raw'
+    output_str = f'sub-{sub}_ses-{ses}_task-{task}_run-{run}_cond-{condition}_dt-{dt}'
     output_dir_root = './MEDTUN_taskdata'
     if 'test' in sys.argv:
         output_dir = os.path.join(output_dir_root, f'TEST/mri/sub-{sub}/ses-{ses}') # test for now
@@ -61,11 +57,13 @@ def main():
         print(f"running task {task} with {settings} for {output_str}, data saved in {output_dir}")
     
     print(f"eyetracking_on is {eyetracker_on}")
+    print(f"condition is {condition}")
 
 
     # initialize
     session = TuningSession(output_str, output_dir = output_dir, eyetracker_on=eyetracker_on,
-                            n_trials=None, settings_file=settings, flicker = flicker, sequence_id = sequence_id, photodiode_check = False, debug = debug)
+                            n_trials=None, settings_file=settings, sequence_id = sequence_id,
+                            condition=condition, debug = debug)
     # create trials
     session.create_trials()
     total_frames = sum([sum(trial.phase_durations) for trial in session.trials[1:-1]]) 
